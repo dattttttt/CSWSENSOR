@@ -1,13 +1,23 @@
 <template>
-  <div style="font-family: sans-serif; padding: 2rem;">
-    <h1>🔵 CSW-2-J Sensor Monitor</h1>
-    <p v-if="latest && latest.tohop !== '-'">
-      <strong>Latest:</strong> {{ latest.tohop }}<br />
-      <strong>Time:</strong> {{ latest.time }}
-    </p>
-    <p v-else>
-      ⏳ Đang tải dữ liệu...
-    </p>
+  <div>
+    <h1>CSW Sensor Monitor</h1>
+
+    <div>
+      <h2>Nút bấm</h2>
+      <p>{{ button.tohop }} ({{ button.time }})</p>
+    </div>
+
+    <div>
+      <h2>Trạng thái cửa</h2>
+      <p>{{ door.status }} ({{ door.time }})</p>
+    </div>
+
+    <div>
+      <h2>Nhiệt độ & Độ ẩm</h2>
+      <p>Nhiệt độ: {{ temp.temperature }} °C</p>
+      <p>Độ ẩm: {{ temp.humidity }} %</p>
+      <p>Thời gian: {{ temp.time }}</p>
+    </div>
   </div>
 </template>
 
@@ -15,29 +25,48 @@
 export default {
   data() {
     return {
-      latest: { tohop: "-", time: "-" }
+      button: { tohop: "-", time: "-" },
+      door: { status: "-", time: "-" },
+      temp: { temperature: "-", humidity: "-", time: "-" }
     };
   },
   methods: {
-    async fetchData() {
+    async fetchAll() {
       try {
-        console.log("👉 Đang gọi API tới:", import.meta.env.VITE_API_URL);
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/latest`);
-        if (!res.ok) throw new Error(`HTTP lỗi ${res.status}`);
-        const data = await res.json();
-        console.log("✅ Dữ liệu nhận được:", data);
-        this.latest = data;
+        const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        console.log("👉 Đang gọi API tới:", base);
+
+        const [buttonRes, doorRes, tempRes] = await Promise.all([
+          fetch(`${base}/api/latest`),
+          fetch(`${base}/api/door`),
+          fetch(`${base}/api/temp`)
+        ]);
+
+        this.button = await buttonRes.json();
+        this.door = await doorRes.json();
+        this.temp = await tempRes.json();
       } catch (err) {
-        console.error("❌ Lỗi khi gọi API:", err.message);
+        console.error("❌ Lỗi khi gọi API:", err);
       }
     }
   },
   mounted() {
-  this.fetchData(); // gọi lần đầu
-  setInterval(() => {
-    this.fetchData(); // dùng arrow function để giữ đúng `this`
-  }, 1000); // cập nhật mỗi 1 giây
-}
-
-}
+    this.fetchAll();
+    setInterval(this.fetchAll, 5000);
+  }
+};
 </script>
+
+<style>
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+div {
+  margin: 10px 20px;
+}
+h2 {
+  margin-top: 20px;
+  color: #333;
+}
+</style>
